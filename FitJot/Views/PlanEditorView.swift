@@ -4,6 +4,10 @@ import SwiftData
 struct PlanEditorView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Plan.sortOrder) private var plans: [Plan]
+    @AppStorage("restRotationFrequency") private var restRotationFrequency = 0
+    @AppStorage("intervalSoundEnabled") private var intervalSoundEnabled = true
+    @AppStorage("intervalVibrationEnabled") private var intervalVibrationEnabled = true
+    @AppStorage("intervalBackgroundNotificationEnabled") private var intervalBackgroundNotificationEnabled = true
     @State private var showingAdd = false
     @State private var name = ""
     @State private var saveError: String?
@@ -40,6 +44,25 @@ struct PlanEditorView: View {
             Button("プランを追加", systemImage: "plus") {
                 name = ""
                 showingAdd = true
+            }
+
+            Section("休養設定") {
+                Picker("休養日の提案頻度", selection: $restRotationFrequency) {
+                    Text("なし").tag(0)
+                    ForEach(1...4, id: \.self) { frequency in
+                        Text("\(frequency)ローテーションごと").tag(frequency)
+                    }
+                }
+            }
+
+            Section {
+                Toggle("サウンド", isOn: $intervalSoundEnabled)
+                Toggle("バイブレーション", isOn: $intervalVibrationEnabled)
+                Toggle("バックグラウンド通知", isOn: $intervalBackgroundNotificationEnabled)
+            } header: {
+                Text("通知設定")
+            } footer: {
+                Text("インターバル終了時の通知設定")
             }
         }
         .navigationTitle("編集")
