@@ -1,35 +1,43 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
-    @State private var selectedPlanID = "A"
+    @Query(sort: \Plan.sortOrder) private var plans: [Plan]
+    @State private var selectedPlanID: PersistentIdentifier?
+
+    private var currentPlanID: PersistentIdentifier? {
+        selectedPlanID ?? plans.first?.persistentModelID
+    }
 
     var body: some View {
         TabView {
             Tab("次回", systemImage: "figure.strengthtraining.traditional") {
                 NavigationStack {
                     List {
-                        ForEach(SamplePlan.plans) { plan in
+                        ForEach(plans) { plan in
                             Section {
                                 Button {
-                                    selectedPlanID = plan.id
+                                    selectedPlanID = plan.persistentModelID
                                 } label: {
                                     HStack {
-                                        Text("\(plan.id) \(plan.name)")
+                                        Text("\(plan.label) \(plan.name)")
                                             .font(.headline)
                                             .foregroundStyle(.primary)
                                         Spacer()
-                                        Image(systemName: selectedPlanID == plan.id
+                                        Image(systemName: currentPlanID == plan.persistentModelID
                                               ? "chevron.down" : "chevron.right")
                                             .foregroundStyle(.secondary)
                                     }
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityValue(selectedPlanID == plan.id ? "選択中" : "未選択")
-                                .accessibilityAddTraits(selectedPlanID == plan.id ? .isSelected : [])
+                                .accessibilityValue(currentPlanID == plan.persistentModelID ? "選択中" : "未選択")
+                                .accessibilityAddTraits(currentPlanID == plan.persistentModelID ? .isSelected : [])
 
-                                if selectedPlanID == plan.id {
-                                    ExerciseRow(plan: plan)
+                                if currentPlanID == plan.persistentModelID {
+                                    ForEach(plan.sortedExercises) { exercise in
+                                        ExerciseRow(exercise: exercise)
+                                    }
                                 }
                             }
                         }
@@ -65,9 +73,11 @@ struct ContentView: View {
 
             Tab("編集", systemImage: "slider.horizontal.3") {
                 NavigationStack {
-                    List(SamplePlan.plans) { plan in
-                        Section(plan.id) {
-                            ExerciseRow(plan: plan)
+                    List(plans) { plan in
+                        Section(plan.label) {
+                            ForEach(plan.sortedExercises) { exercise in
+                                ExerciseRow(exercise: exercise)
+                            }
                         }
                     }
                     .navigationTitle("編集")
@@ -77,26 +87,13 @@ struct ContentView: View {
     }
 }
 
-private struct SamplePlan: Identifiable {
-    let id: String
-    let name: String
-    let exerciseName: String
-    let amount: String
-
-    static let plans = [
-        SamplePlan(id: "A", name: "プラン1", exerciseName: "腕立て", amount: "10回 × 3セット"),
-        SamplePlan(id: "B", name: "プラン2", exerciseName: "プランク", amount: "30秒 × 3セット"),
-        SamplePlan(id: "C", name: "プラン3", exerciseName: "スクワット", amount: "10回 × 3セット")
-    ]
-}
-
 private struct ExerciseRow: View {
-    let plan: SamplePlan
+    let exercise: Exercise
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(plan.exerciseName)
-            Text(plan.amount)
+            Text(exercise.name)
+            Text("\(exercise.standardAmount)\(exercise.type == .repetitions ? "回" : "秒") × \(exercise.standardSets)セット")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -105,4 +102,5 @@ private struct ExerciseRow: View {
 
 #Preview {
     ContentView()
+        .modelContainer(try! InitialData.makeContainer(inMemory: true))
 }
