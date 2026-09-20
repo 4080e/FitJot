@@ -6,7 +6,8 @@ struct ContentView: View {
     @State private var selectedPlanID: PersistentIdentifier?
 
     private var currentPlanID: PersistentIdentifier? {
-        selectedPlanID ?? plans.first?.persistentModelID
+        plans.first { $0.persistentModelID == selectedPlanID }?.persistentModelID
+            ?? plans.first?.persistentModelID
     }
 
     var body: some View {
@@ -73,14 +74,7 @@ struct ContentView: View {
 
             Tab("編集", systemImage: "slider.horizontal.3") {
                 NavigationStack {
-                    List(plans) { plan in
-                        Section(plan.label) {
-                            ForEach(plan.sortedExercises) { exercise in
-                                ExerciseRow(exercise: exercise)
-                            }
-                        }
-                    }
-                    .navigationTitle("編集")
+                    PlanEditorView()
                 }
             }
         }
