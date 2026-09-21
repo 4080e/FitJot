@@ -7,6 +7,7 @@ struct TrainingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Bindable var session: TrainingSession
+    @State private var notifications = IntervalNotifications()
     @State private var confirmingFinish = false
     @State private var showingSettings = false
     @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 48
@@ -162,10 +163,35 @@ struct TrainingView: View {
         .onChange(of: session.phase) { _, phase in
             if phase == .finished { saveHistory() }
         }
+        .onChange(of: session.isPaused) { _, paused in
+            if paused { notifications.stopCountdownTick() }
+        }
+        .onChange(of: session.currentNotification) { _, end in
+            notifications.schedule(events: end.map { [$0] } ?? [])
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { session.update() }
+            if phase == .active {
+                notifications.cancel()
+                // Catch up without replaying sounds for intervals that ended while away.
+                notifications.isActive = false
+                session.update()
+                notifications.isActive = true
+            } else {
+                notifications.isActive = false
+                notifications.schedule(events: session.backgroundNotifications)
+            }
+        }
+        .onDisappear {
+            notifications.cancel()
+            notifications.stopCountdownTick()
+            session.onCountdownEnd = nil
+            session.onCountdownTick = nil
         }
         .task {
+            notifications.isActive = scenePhase == .active
+            notifications.prepare()
+            session.onCountdownEnd = { notifications.countdownEnded() }
+            session.onCountdownTick = { notifications.countdownTick() }
             while !Task.isCancelled {
                 if scenePhase == .active { session.update() }
                 do { try await Task.sleep(for: .milliseconds(200)) }

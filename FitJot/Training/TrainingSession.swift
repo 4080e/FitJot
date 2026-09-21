@@ -28,6 +28,52 @@ final class TrainingSession: Identifiable {
     private(set) var elapsed: TimeInterval = 0
     private(set) var trainingStartedAt: Date?
     private(set) var endedAt: Date?
+    @ObservationIgnored var onCountdownTick: (() -> Void)?
+    private var lastCountdownSecond: Int?
+    @ObservationIgnored var onCountdownEnd: (() -> Void)?
+
+    struct CountdownNotification: Equatable {
+        enum Kind { case interval, timedSet }
+        let date: Date
+        let kind: Kind
+    }
+
+    var currentNotification: CountdownNotification? {
+        guard !isPaused, let deadline else { return nil }
+        if phase == .interval { return CountdownNotification(date: deadline, kind: .interval) }
+        if phase == .exercising && current.type == .timed {
+            return CountdownNotification(date: deadline, kind: .timedSet)
+        }
+        return nil
+    }
+
+    // Predict automatic transitions without running a timer in the background.
+    var backgroundNotifications: [CountdownNotification] {
+        guard let first = currentNotification else { return [] }
+        var events = [first]
+        guard current.type == .timed else { return events }
+        var completed = current.completedSets
+        var date = first.date
+        var kind = first.kind
+        while events.count < 32 {
+            if kind == .timedSet {
+                completed += 1
+                guard completed < current.sets else { break }
+                if current.interval > 0 {
+                    date = date.addingTimeInterval(TimeInterval(current.interval))
+                    kind = .interval
+                } else {
+                    date = date.addingTimeInterval(TimeInterval(current.amount))
+                }
+            } else {
+                date = date.addingTimeInterval(TimeInterval(current.amount))
+                kind = .timedSet
+            }
+            events.append(CountdownNotification(date: date, kind: kind))
+        }
+        return events
+    }
+
     private var deadline: Date?
     private var startedAt: Date?
     private var pausedAt: Date?
@@ -57,6 +103,7 @@ final class TrainingSession: Identifiable {
     }
 
     private func beginSet(at now: Date) {
+        lastCountdownSecond = nil
         phase = .exercising
         remaining = current.type == .timed ? TimeInterval(current.amount) : 0
         deadline = current.type == .timed ? now.addingTimeInterval(remaining) : nil
@@ -72,6 +119,7 @@ final class TrainingSession: Identifiable {
         if current.completedSets >= current.sets {
             advance(at: now)
         } else if current.interval > 0 {
+            lastCountdownSecond = nil
             phase = .interval
             remaining = TimeInterval(current.interval)
             deadline = now.addingTimeInterval(remaining)
@@ -84,10 +132,20 @@ final class TrainingSession: Identifiable {
         guard phase != .finished, !isPaused else { return }
         // Use deadlines so delayed foreground updates do not accumulate timer drift.
         while let end = deadline, end <= now, phase != .finished {
-            if phase == .interval { beginSet(at: end) }
+            onCountdownEnd?()
+            if phase == .interval {
+                beginSet(at: end)
+            }
             else { completeSet(at: end) }
         }
-        if let deadline { remaining = max(0, deadline.timeIntervalSince(now)) }
+        if let deadline {
+            remaining = max(0, deadline.timeIntervalSince(now))
+            let second = Int(ceil(remaining))
+            if (1...3).contains(second), lastCountdownSecond != second {
+                lastCountdownSecond = second
+                onCountdownTick?()
+            }
+        }
         if let startedAt { elapsed = max(0, now.timeIntervalSince(startedAt) - pausedDuration) }
     }
 
