@@ -3,6 +3,7 @@ import SwiftData
 
 struct ContentView: View {
     @Query(sort: \Plan.sortOrder) private var plans: [Plan]
+    @State private var trainingSession: TrainingSession?
     @State private var selectedPlanID: PersistentIdentifier?
 
     private var currentPlanID: PersistentIdentifier? {
@@ -44,11 +45,16 @@ struct ContentView: View {
                         }
                         Section {
                             VStack(spacing: 12) {
-                                Button {} label: {
+                                Button {
+                                    if let plan = plans.first(where: { $0.persistentModelID == currentPlanID }) {
+                                        trainingSession = TrainingSession(plan: plan)
+                                    }
+                                } label: {
                                     Text("トレーニングスタート")
                                         .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.borderedProminent)
+                                .disabled(plans.first(where: { $0.persistentModelID == currentPlanID })?.exercises.isEmpty ?? true)
 
                                 Button {} label: {
                                     Text("今日は休養")
@@ -62,6 +68,9 @@ struct ContentView: View {
                         }
                     }
                     .navigationTitle("次回")
+                    .fullScreenCover(item: $trainingSession) { session in
+                        TrainingView(session: session)
+                    }
                 }
             }
 
