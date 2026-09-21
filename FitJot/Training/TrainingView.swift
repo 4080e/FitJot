@@ -74,13 +74,13 @@ struct TrainingView: View {
                                     .frame(height: primaryButtonHeight)
                                     .contentShape(Rectangle())
                             }
-                            .buttonStyle(.borderedProminent)
+                            .fitJotMainAction()
                             .controlSize(.large)
 
                             Button { session.skipInterval() } label: {
                                 actionLabel("インターバルをスキップ")
                             }
-                            .buttonStyle(.bordered)
+                            .fitJotSecondaryAction()
                             .controlSize(.large)
                             .opacity(session.phase == .interval ? 1 : 0)
                             .allowsHitTesting(session.phase == .interval)
@@ -91,7 +91,7 @@ struct TrainingView: View {
                         Button { session.endExercise() } label: {
                             actionLabel(session.current.completedSets == 0 ? "スキップ" : "この種目を終了")
                         }
-                        .buttonStyle(.bordered)
+                        .fitJotSecondaryAction()
                         .controlSize(.large)
                     }
                     .padding(.horizontal)

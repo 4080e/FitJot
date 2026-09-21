@@ -71,10 +71,10 @@ struct ContentView: View {
                         Section {
                             VStack(spacing: 12) {
                                 if isRestSuggested {
-                                    trainingButton.buttonStyle(.bordered)
+                                    trainingButton.fitJotSecondaryAction()
                                     restButton.buttonStyle(.borderedProminent)
                                 } else {
-                                    trainingButton.buttonStyle(.borderedProminent)
+                                    trainingButton.fitJotMainAction()
                                     restButton.buttonStyle(.bordered)
                                 }
                             }
