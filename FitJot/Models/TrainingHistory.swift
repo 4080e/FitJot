@@ -37,8 +37,14 @@ final class TrainingHistory {
         let id = session.id
         let existing = FetchDescriptor<TrainingHistory>(predicate: #Predicate { $0.sessionID == id })
         guard try context.fetchCount(existing) == 0 else { return }
-        context.insert(TrainingHistory(session: session))
-        do { try context.save() }
+        do {
+            context.insert(TrainingHistory(session: session))
+            if let planID = session.sourcePlanID {
+                let plans = try context.fetch(FetchDescriptor<Plan>(sortBy: [SortDescriptor(\Plan.sortOrder)]))
+                try RotationState.load(in: context).record(planID: planID, plans: plans)
+            }
+            try context.save()
+        }
         catch { context.rollback(); throw error }
     }
 }

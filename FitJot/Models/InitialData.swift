@@ -41,7 +41,7 @@ enum InitialData {
     }
 
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
-        let schema = Schema([Plan.self, Exercise.self, InitialDataState.self, TrainingHistory.self])
+        let schema = Schema([Plan.self, Exercise.self, InitialDataState.self, TrainingHistory.self, RotationState.self, RestRecord.self])
         let configuration = ModelConfiguration(schema: schema,
                                                isStoredInMemoryOnly: inMemory,
                                                cloudKitDatabase: .none)

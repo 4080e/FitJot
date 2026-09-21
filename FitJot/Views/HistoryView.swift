@@ -4,6 +4,8 @@ import SwiftData
 struct HistoryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TrainingHistory.performedAt, order: .reverse) private var histories: [TrainingHistory]
+    @Query(sort: \RestRecord.date, order: .reverse) private var restRecords: [RestRecord]
+    @State private var deletingRest: RestRecord?
     @State private var month = Date.now
     @State private var selectedDate = Date.now
     @State private var deleting: TrainingHistory?
@@ -37,6 +39,13 @@ struct HistoryView: View {
         Set(histories.map { calendar.startOfDay(for: $0.performedAt) })
     }
 
+    private var selectedRests: [RestRecord] {
+        restRecords.filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
+    }
+    private var restDays: Set<Date> {
+        Set(restRecords.map { calendar.startOfDay(for: $0.date) })
+    }
+
     var body: some View {
         List {
             Section {
@@ -62,12 +71,19 @@ struct HistoryView: View {
                             let date = calendar.date(byAdding: .day, value: cell - leadingDays, to: monthStart)!
                             let selected = calendar.isDate(date, inSameDayAs: selectedDate)
                             let marked = markedDays.contains(calendar.startOfDay(for: date))
+                            let rested = restDays.contains(calendar.startOfDay(for: date))
                             Button { selectedDate = date } label: {
                                 VStack(spacing: 3) {
                                     Text("\(cell - leadingDays + 1)")
                                         .font(.body).minimumScaleFactor(0.6).lineLimit(1)
-                                    Circle().fill(marked ? Color.accentColor : .clear)
-                                        .frame(width: 5, height: 5)
+                                    HStack(spacing: 3) {
+                                        Circle().fill(marked ? Color.accentColor : .clear)
+                                            .frame(width: 5, height: 5)
+                                        Image(systemName: "moon.fill")
+                                            .font(.system(size: 8))
+                                            .foregroundStyle(.secondary)
+                                            .opacity(rested ? 1 : 0)
+                                    }
                                 }
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(selected ? Color.accentColor.opacity(0.18) : .clear,
@@ -76,15 +92,23 @@ struct HistoryView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(dateText(date, template: "yMMMMdEEEE"))
-                            .accessibilityValue(marked ? "トレーニング実施日" : "記録なし")
+                            .accessibilityValue(marked && rested ? "トレーニング実施日・休養" : marked ? "トレーニング実施日" : rested ? "休養" : "記録なし")
                             .accessibilityAddTraits(selected ? .isSelected : [])
                         }
                     }
                 }
             }
             Section(dateText(selectedDate, template: "yMMMMd")) {
-                if selectedHistories.isEmpty {
+                if selectedHistories.isEmpty && selectedRests.isEmpty {
                     Text("この日の記録はありません").foregroundStyle(.secondary)
+                }
+                ForEach(selectedRests) { rest in
+                    HStack {
+                        Label("休養", systemImage: "moon.fill")
+                        Spacer()
+                        Button("削除", role: .destructive) { deletingRest = rest }
+                            .buttonStyle(.borderless)
+                    }
                 }
                 ForEach(selectedHistories) { history in
                     VStack(alignment: .leading, spacing: 12) {
@@ -112,16 +136,21 @@ struct HistoryView: View {
         .environment(\.locale, japaneseLocale)
         .navigationTitle("履歴")
         .confirmationDialog("この履歴を削除しますか？", isPresented: Binding(
-            get: { deleting != nil }, set: { if !$0 { deleting = nil } }
+            get: { deleting != nil || deletingRest != nil }, set: { if !$0 { deleting = nil; deletingRest = nil } }
         ), titleVisibility: .visible) {
             Button("削除", role: .destructive) {
                 if let deleting {
                     context.delete(deleting)
                     saveError = context.saveEditingChanges()
                 }
+                if let deletingRest {
+                    context.delete(deletingRest)
+                    saveError = context.saveEditingChanges()
+                }
                 deleting = nil
+                deletingRest = nil
             }
-            Button("キャンセル", role: .cancel) { deleting = nil }
+            Button("キャンセル", role: .cancel) { deleting = nil; deletingRest = nil }
         }
         .editingSaveAlert(error: $saveError)
     }

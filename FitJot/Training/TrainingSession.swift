@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 struct TrainingExercise {
     let name: String
@@ -17,6 +18,7 @@ final class TrainingSession: Identifiable {
     enum Phase { case ready, exercising, interval, finished }
 
     let id = UUID()
+    private(set) var sourcePlanID: PersistentIdentifier?
     let planName: String
     var exercises: [TrainingExercise]
     private(set) var index = 0
@@ -42,6 +44,7 @@ final class TrainingSession: Identifiable {
             TrainingExercise(name: $0.name, type: $0.type, amount: $0.standardAmount,
                              sets: $0.standardSets, interval: $0.intervalSeconds)
         })
+        sourcePlanID = plan.persistentModelID
     }
 
     var current: TrainingExercise { exercises[index] }
