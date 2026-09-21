@@ -76,8 +76,7 @@ struct ContentView: View {
 
             Tab("履歴", systemImage: "calendar") {
                 NavigationStack {
-                    ContentUnavailableView("履歴はまだありません", systemImage: "calendar")
-                        .navigationTitle("履歴")
+                    HistoryView()
                 }
             }
 

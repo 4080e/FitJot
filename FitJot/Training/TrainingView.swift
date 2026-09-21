@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct TrainingView: View {
+    @Environment(\.modelContext) private var context
+    @State private var saveError: String?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Bindable var session: TrainingSession
@@ -146,9 +149,18 @@ struct TrainingView: View {
                 }
             }
         }
+        .alert("履歴を保存できませんでした", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("再試行") { saveHistory() }
+            Button("保存せず終了", role: .destructive) { dismiss() }
+        } message: {
+            Text(saveError ?? "")
+        }
         .interactiveDismissDisabled()
         .onChange(of: session.phase) { _, phase in
-            if phase == .finished { dismiss() }
+            if phase == .finished { saveHistory() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { session.update() }
@@ -159,6 +171,15 @@ struct TrainingView: View {
                 do { try await Task.sleep(for: .milliseconds(200)) }
                 catch { return }
             }
+        }
+    }
+
+    private func saveHistory() {
+        do {
+            try TrainingHistory.save(session: session, in: context)
+            dismiss()
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 

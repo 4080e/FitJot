@@ -24,6 +24,8 @@ final class TrainingSession: Identifiable {
     private(set) var isPaused = false
     private(set) var remaining: TimeInterval = 0
     private(set) var elapsed: TimeInterval = 0
+    private(set) var trainingStartedAt: Date?
+    private(set) var endedAt: Date?
     private var deadline: Date?
     private var startedAt: Date?
     private var pausedAt: Date?
@@ -46,6 +48,7 @@ final class TrainingSession: Identifiable {
 
     func start(at now: Date = .now) {
         guard phase == .ready else { return }
+        if trainingStartedAt == nil { trainingStartedAt = now }
         startedAt = now
         beginSet(at: now)
     }
@@ -118,6 +121,7 @@ final class TrainingSession: Identifiable {
         recordCurrent(at: now)
         deadline = nil
         isPaused = false
+        endedAt = now
         phase = .finished
     }
 
@@ -145,6 +149,7 @@ final class TrainingSession: Identifiable {
             elapsed = 0
             phase = .ready
         } else {
+            endedAt = now
             phase = .finished
         }
     }
